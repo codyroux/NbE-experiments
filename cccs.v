@@ -289,5 +289,7 @@ Set Printing Implicit.
 Eval vm_compute in (nf (comp test'' test''')).
 Eval vm_compute in (nf test'''').
 
-Goal (nf (comp test test') = nf test'').
+Goal (nf (comp test'' test''') = nf test'''').
   vm_compute.
+  (* Uh oh *)
+  Fail reflexivity.
