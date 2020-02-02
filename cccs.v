@@ -38,8 +38,8 @@ Inductive Mor : Obj -> Obj -> Type :=
 (* No notion of opp! Or indeed, Mor actions *)
 Definition Psh := Obj -> Type.
 
+(* But we can define what it means to have one! *)
 Definition map_F (F : Psh) := forall a b (f : Mor a b), F b -> F a.
-
 
 Definition Yoneda : Obj -> Psh :=
   fun a => (fun b => Mor b a).
@@ -52,7 +52,7 @@ Proof.
 Defined.
 
 Print transport_y.
-  
+
 
 Definition map_y : forall a, map_F (Yoneda a).
 Proof.
@@ -84,7 +84,7 @@ Proof.
   pose (h := (y_f g)).
   apply alpha; auto.
 Defined.
-  
+
 
 Fixpoint obj_interp (a : Obj) : Psh :=
   match a with
@@ -116,10 +116,10 @@ Print map_obj_interp.
 
 Notation "〚 a 〛" := (obj_interp a).
 
-Definition reify_y : forall a b, Nat (Yoneda a) (Yoneda b) -> Mor a b.
+Definition reify_y : forall {a b}, Nat (Yoneda a) (Yoneda b) -> Mor a b.
 Proof.
   intros a b; unfold Nat.
-  intros transp; apply (transp a ident).
+  intros transp; apply (transp _ ident).
 Defined.
 
 Definition mor_interp {a b} (f: Mor a b) : Nat 〚 a 〛 〚 b 〛.
@@ -156,7 +156,7 @@ Proof.
 Defined.
 
 Print mor_interp.
-    
+
 Notation "(| f |)" := (mor_interp f).
 
 Definition id_Nat : forall F, Nat F F.
@@ -166,7 +166,7 @@ Defined.
 
 Hint Resolve id_Nat.
 
-Definition comp_Nat : forall F G H, Nat F G -> Nat G H -> Nat F H.
+Definition comp_Nat : forall {F G H}, Nat F G -> Nat G H -> Nat F H.
 Proof.
   unfold Nat; intros; auto.
 Defined.
@@ -178,7 +178,9 @@ Definition q_q_inv {a} : Nat 〚 a 〛 (Yoneda a)
                          *
                          Nat (Yoneda a) 〚 a 〛.
 Proof.
-  induction a; split; simpl; auto; unfold Nat; unfold Yoneda.
+  induction a; split; simpl; unfold Nat; unfold Yoneda.
+  - intros b f; exact f.
+  - intros b f; exact f.
   - intros.
     apply final.
   - intros; exact tt.
@@ -191,7 +193,6 @@ Proof.
       eapply pi_1; eauto.
     + apply IHa2; eapply pi_2; eauto.
   - intros; apply lam.
-    unfold Exp in *.
     apply IHa2.
     apply X.
     split.
@@ -200,20 +201,42 @@ Proof.
       eapply pi_2; exact ident.
   - intros.
     unfold Exp.
-    intros; apply IHa2.
+    intros b [f m]; apply IHa2.
     eapply app.
-    + eapply comp.
-      apply X0.
-      exact X.
+    + eapply transport_y.
+      -- exact X.
+      -- exact f.
     + apply IHa1.
-      apply X0.
+      exact m.
 Defined.
 
 Notation "'q'" := (fst q_q_inv).
 
 Notation "'q⁻'" := (snd q_q_inv).
 
-Definition nf {a b : Obj} (f : Mor a b) := q _ ( (| f |) _ (q⁻ _ ident)).
+Check q⁻.
+Check q.
+
+Check comp_Nat.
+
+Check reify_y.
+
+Print reify_y.
+
+Check comp_Nat.
+
+Notation "m ∘ n" := (comp_Nat n m)(at level 50).
+
+Check q⁻.
+
+
+Definition nf {a b : Obj} (f : Mor a b) :=
+  let up_down := q ∘ (| f |) ∘ q⁻
+  in
+  reify_y up_down
+.
+
+  (* q _ ( (| f |) _ (q⁻ _ ident)). *)
 
 Check nf.
 
@@ -284,12 +307,40 @@ Defined.
 
 Check test''.
 
+Definition foo := comp test'' test'''.
+
+Check (q⁻ _ ident).
+
+Check ((| foo |) _ (q⁻ _ ident)).
+
+Eval compute in ( q _ ((| foo |) _ (q⁻ _ ident))).
+
+Eval compute in nf (nf foo).
+
 Eval vm_compute in comp test'' test'''.
-Set Printing Implicit.
+(* Set Printing Implicit. *)
 Eval vm_compute in (nf (comp test'' test''')).
+Eval vm_compute in (nf (nf (comp test'' test'''))).
 Eval vm_compute in (nf test'''').
 
 Goal (nf (comp test'' test''') = nf test'''').
   vm_compute.
   (* Uh oh *)
   Fail reflexivity.
+Abort.
+
+Definition blah : Mor a a.
+  eapply pi_1.
+  eapply pi_1.
+  eapply comp.
+  eapply pair.
+  eapply pair.
+  exact ident.
+  exact ident.
+  exact ident.
+  exact ident.
+Defined.
+
+Print blah.
+
+Eval compute in (nf blah).
